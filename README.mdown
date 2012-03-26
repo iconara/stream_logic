@@ -1,0 +1,53 @@
+# README
+
+`StreamLogic` applies `AND` and `OR` operations to sorted streams represented by `Enumerable`s.
+
+## Examples
+
+Say you got three files, `a`, `b` and `c` that contains words, one on each line, sorted alphabetically. To get a stream with the words that appear in all three files, do this:
+
+    include StreamLogic
+
+    s1 = Stream.new { File.open('a') }
+    s2 = Stream.new { File.open('b') }
+    s3 = Stream.new { File.open('c') }
+    (s1 & s2 & s3).each do |line|
+      puts line
+    end
+
+It doesn't matter if the files have ten lines each, or ten million, `StreamLogic` will not gobble them into memory, but perform the `AND` operation streaming.
+
+An example of the lazyness of `StreamLogic` is this example that extracts the first four numbers that are divisible by both 3 and 5 from the endless streams of all numbers divisible by 3 and 5, respectively:
+
+    def endless_stream_of_numbers_divisible_by(n)
+    	Enumerator.new do |y|
+      	counter = 0
+        loop do
+        	y << counter
+        	counter += n
+        end
+      end
+    end
+
+    s1 = Stream.new { endless_stream_of_numbers_divisible_by(3) }
+    s2 = Stream.new { endless_stream_of_numbers_divisible_by(5) }
+
+    (s1 & s2).take(4) # => [0, 15, 30, 45]
+
+`StreamLogic` also supports the `OR` operator:
+
+    people_a_to_m = Stream.new { File.open('big_list_of_people_a_through_m') }
+    people_n_to_z = Stream.new { File.open('big_list_of_people_n_through_z') }
+    some_other_people = Stream.new { File.open('another_big_list_of_people') }
+    ((people_a_to_m | people_n_to_z) & some_other_people).each do |name|
+      puts name
+    end
+
+The code above will print all names in the file "another_big_list_of_people" that appear in either "big_list_of_people_a_through_m" or "big_list_of_people_n_through_z".
+
+## Notes
+
+* Create a `Stream` by passing an `Enumerable` as parameter to `new`, or give a block that returns an `Enumerable`. The latter is useful when you need to restore some state before reusing the `Enumerable` (`IO`s like `File`s for example).
+* The `Enumerable`s must return an `Enumerator` from `#each` if no block is given.
+* It's very important that the `Enumerable`s are sorted.
+* The resulting streams will contain only unique items.
