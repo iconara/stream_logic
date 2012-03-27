@@ -51,3 +51,4 @@ The code above will print all names in the file "another_big_list_of_people" tha
 * The `Enumerable`s must return an `Enumerator` from `#each` if no block is given.
 * It's very important that the `Enumerable`s are sorted.
 * The resulting streams will contain only unique items.
+* `StreamLogic` relies heavily on `Enumerator`s and `#next` at the moment, this are slow, for various reasons (see discussion here: http://www.ruby-forum.com/topic/196086). In almost all cases it's unnecessary to use the Fiber/Thread requiring aspects of `Enumerator` and I'll try to rewrite things using more performant mechanisms where possible. It will still be possible to pass in an endless stream like in one of the examples above, but when that is not needed a better mechanism will be used.
