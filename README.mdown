@@ -45,6 +45,8 @@ An example of the lazyness of `StreamLogic` is this example that extracts the fi
 
 The code above will print all names in the file "another_big_list_of_people" that appear in either "big_list_of_people_a_through_m" or "big_list_of_people_n_through_z".
 
+Sometimes logic operations sound like the opposite of natural language, so `people_a_to_m | people_n_to_z` is read as "people_a_to_m OR people_n_to_z", but means the items in "people_a_to_m" and the items in "people_n_to_z". Another way to say the same thing is as I did above, "[the items] that appear in either 'big_list_of_people_a_through_m' or 'big_list_of_people_n_through_z'", so the operation `|` can be described using either "or" or "and". Language is hard.
+
 ## Notes
 
 * Create a `Stream` by passing an `Enumerable` as parameter to `new`, or give a block that returns an `Enumerable`. The latter is useful when you need to restore some state before reusing the `Enumerable` (`IO`s like `File`s for example).
