@@ -1,6 +1,6 @@
 # README
 
-`StreamLogic` applies `AND` and `OR` operations to sorted streams represented by `Enumerable`s.
+`StreamLogic` can apply set operations to sorted finite streams represented by `Enumerable`s.
 
 ## Examples
 
@@ -15,16 +15,16 @@ Say you got three files, `a`, `b` and `c` that contains words, one on each line,
       puts line
     end
 
-It doesn't matter if the files have ten lines each, or ten million, `StreamLogic` will not gobble them into memory, but perform the `AND` operation streaming.
+It doesn't matter if the files have ten lines each, or ten million, `StreamLogic` will not gobble them into memory, but perform the `&` (logical and, set union) operation streamingly.
 
 An example of the lazyness of `StreamLogic` is this example that extracts the first four numbers that are divisible by both 3 and 5 from the endless streams of all numbers divisible by 3 and 5, respectively:
 
     def endless_stream_of_numbers_divisible_by(n)
-    	Enumerator.new do |y|
-      	counter = 0
+      Enumerator.new do |y|
+        counter = 0
         loop do
-        	y << counter
-        	counter += n
+          y << counter
+          counter += n
         end
       end
     end
@@ -34,7 +34,7 @@ An example of the lazyness of `StreamLogic` is this example that extracts the fi
 
     (s1 & s2).take(4) # => [0, 15, 30, 45]
 
-`StreamLogic` also supports the `OR` operator:
+`StreamLogic` also supports the `|` (logical or, set union) operator:
 
     people_a_to_m = Stream.new { File.open('big_list_of_people_a_through_m') }
     people_n_to_z = Stream.new { File.open('big_list_of_people_n_through_z') }
@@ -47,13 +47,19 @@ The code above will print all names in the file "another_big_list_of_people" tha
 
 Sometimes logic operations sound like the opposite of natural language, so `people_a_to_m | people_n_to_z` is read as "people_a_to_m OR people_n_to_z", but means the items in "people_a_to_m" and the items in "people_n_to_z". Another way to say the same thing is as I did above, "[the items] that appear in either 'big_list_of_people_a_through_m' or 'big_list_of_people_n_through_z'", so the operation `|` can be described using either "or" or "and". Language is hard.
 
+If you want to get a merged stream but not filter out duplicates you can use the `+` operator, and if you want to find the elements that appear only in one of the streams, use `-`:
+
+    s1 = StreamLogic::Stream.new(%w[phil sam steve sue])
+    s2 = StreamLogic::Stream.new(%w[anne phil sue vincent])
+    (s1 - s2).to_a # => ['anne', 'sam', 'steve', 'vincent']
+
 ## Notes
 
 * Create a `Stream` by passing an `Enumerable` as parameter to `new`, or give a block that returns an `Enumerable`. The latter is useful when you need to restore some state before reusing the `Enumerable` (`IO`s like `File`s for example).
-* The `Enumerable`s must return an `Enumerator` from `#each` if no block is given.
+* The `Enumerable`s must respond to `#to_enum`.
 * It's very important that the `Enumerable`s are sorted.
-* The resulting streams will contain only unique items.
+* The resulting streams will contain only unique items, with the exception of the `+` operator.
 
 ## Performance
 
-`StreamLogic` relies heavily on `Enumerator`s and `#next` at the moment, this is slow, for various reasons (see discussion here: http://www.ruby-forum.com/topic/196086). In almost all cases it's unnecessary to use the Fiber/Thread requiring aspects of `Enumerator` and I'll try to rewrite things using more performant mechanisms where possible. It will still be possible to pass in an endless stream like in one of the examples above, but when that is not needed a better mechanism will be used.
+`StreamLogic` relies heavily on external iteration. In Ruby external iteration is usually performed with `Enumerable#next`, but it's not very performant (see discussion here: http://www.ruby-forum.com/topic/196086). Where possible `StreamLogic` will perform external iteration using mechanisms like `IO#gets`, `Array#[]`. If you need to pass in some `Enumerable` that does not provide an efficient external iteration mechanism, you can implement your own, just include `StreamLogic::ExternalEnumeration` and implement `#next_element` to return the next element on each invocation, and `:stop_iteration` when the end has been reached.
