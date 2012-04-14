@@ -32,8 +32,17 @@ Viiite.bench do |r|
     r.report('a & b') do
       n.times { (a & b).to_a }
     end
+
     r.report('a | b') do
       n.times { (b | a).to_a }
+    end
+
+    r.report('a + b') do
+      n.times { (b + a).to_a }
+    end
+
+    r.report('a - b') do
+      n.times { (b - a).to_a }
     end
   end
 end
