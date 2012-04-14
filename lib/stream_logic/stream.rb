@@ -1,99 +1,118 @@
 # encoding: utf-8
 
 module StreamLogic
-	module EnumeratorHelpers
-		def safe_next(enum)
-			enum.next
-		rescue StopIteration
-			nil
-		end
-	end
+  module CombinationOperators
+    def &(query)
+      AndStream.new(self, query)
+    end
 
-	module CombinationOperators
-		def &(query)
-			AndStream.new(self, query)
-		end
+    def |(query)
+      OrStream.new(self, query)
+    end
+  end
 
-		def |(query)
-			OrStream.new(self, query)
-		end
-	end
+  class Stream
+    include ExternalEnumeration
+    include CombinationOperators
 
-	class Stream
-		include Enumerable
-		include CombinationOperators
+    def initialize(enumerable=nil, &block)
+      @enumerable = enumerable
+      @constructor = block
+    end
 
-		def initialize(enumerable=nil, &block)
-			@enumerable = enumerable
-			@constructor = block
-		end
+    def next_element
+      @enumerator ||= adapt(@enumerable ? @enumerable : @constructor.call)
+      @enumerator.next_element
+    end
 
-		def each(&block)
-			enumerable = @enumerable || @constructor.call
-			return enumerable.each unless block_given?
-			enumerable.each(&block)
-		end
-	end
+    def rewind
+      @enumerator = nil
+    end
 
-	class CombiningStream
-		include Enumerable
-		include EnumeratorHelpers
-		include CombinationOperators
+    private
 
-		def initialize(*subqueries)
-			@subqueries = subqueries
-		end
+    def adapt(enumerable)
+      if enumerable.respond_to?(:next_element)
+        enumerable
+      elsif enumerable.respond_to?(:gets)
+        # for Tempfile
+        IoEnumerator.new(enumerable)
+      else
+        case enumerable
+        when Array then ArrayEnumerator.new(enumerable)
+        when Hash  then ArrayEnumerator.new(enumerable.to_a)
+        when IO    then IoEnumerator.new(enumerable)
+        else            EnumeratorEnumerator.new(enumerable.to_enum)
+        end
+      end
+    end
+  end
 
-		def each(&block)
-			enum = combination(@subqueries)
-			return enum unless block_given?
-			enum.each(&block)
-		end
+  class CombiningStream
+    include ExternalEnumeration
+    include CombinationOperators
 
-		def combination
-			raise NotImplementedError, %(#combination not implemented!)
-		end
-	end
+    def initialize(*subqueries)
+      @subqueries = subqueries
+    end
 
-	class AndStream < CombiningStream
-		def combination(queries)
-			Enumerator.new do |yielder|
-				enums = queries.map(&:each)
-				values = enums.map { |e| safe_next(e) }
-				loop do
-					break if values.any? { |v| v.nil? }
-					until values.all? { |v| v == values.first } || values.any? { |v| v.nil? }
-						index = values.index(values.min)
-						values[index] = safe_next(enums[index])
-					end
-					pivot = values.first
-					yielder << pivot
-					until values[0].nil? || values[0] > pivot
-						values[0] = safe_next(enums[0])
-					end
-				end
-			end
-		end
-	end
+    def next_element
+      @enumerator ||= combination(@subqueries)
+      @enumerator.next_element
+    end
 
-	class OrStream < CombiningStream
-		def combination(queries)
-			Enumerator.new do |yielder|
-				enums = queries.map(&:each)
-				values = enums.map { |e| safe_next(e) }
-				loop do
-					break if values.all? { |v| v.nil? }
-					smallest = values.compact.min
-					yielder << smallest
-					enums.each_with_index do |enum, i|
-						if values[i] && values[i] <= smallest
-							until values[i].nil? || values[i] > smallest
-								values[i] = safe_next(enum)
-							end
-						end
-					end
-				end
-			end
-		end
-	end
+    def rewind
+      @enumerator = nil
+    end
+
+    def combination
+      raise NotImplementedError, %(#combination not implemented!)
+    end
+  end
+
+  class AndStream < CombiningStream
+    def combination(queries)
+      enums = queries.map(&:each)
+      values = enums.map(&:next_or_nil)
+      ProcEnumerator.new do
+        lambda do
+          if values.any? { |v| v.nil? }
+            :stop_iteration
+          else
+            until values.all? { |v| v == values.first } || values.any? { |v| v.nil? }
+              index = values.index(values.min)
+              values[index] = enums[index].next_or_nil
+            end
+            pivot = values.first
+            until values[0].nil? || values[0] > pivot
+              values[0] = enums[0].next_or_nil
+            end
+            pivot
+          end
+        end
+      end
+    end
+  end
+
+  class OrStream < CombiningStream
+    def combination(queries)
+      enums = queries.map(&:each)
+      values = enums.map(&:next_or_nil)
+      ProcEnumerator.new do
+        lambda do
+          if values.first.nil? && values.all? { |v| v.nil? }
+            :stop_iteration
+          else
+            smallest = values.compact.min
+            enums.size.times do |i|
+              until values[i].nil? || values[i] > smallest
+                values[i] = enums[i].next_or_nil
+              end
+            end
+            smallest
+          end
+        end
+      end
+    end
+  end
 end
