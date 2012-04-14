@@ -4,9 +4,13 @@ module StreamLogic
   module ExternalEnumeration
     include Enumerable
 
+    def to_enum
+      self
+    end
+
     def each
-      rewind
       return self unless block_given?
+      rewind
       while (v = next_element) != :stop_iteration
         yield v
       end

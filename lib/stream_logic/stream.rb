@@ -71,21 +71,21 @@ module StreamLogic
   end
 
   class AndStream < CombiningStream
-    def combination(queries)
-      enums = queries.map(&:each)
-      values = enums.map(&:next_or_nil)
+    def combination(streams)
       ProcEnumerator.new do
+        streams.each(&:rewind)
+        values = streams.map(&:next_or_nil)
         lambda do
           if values.any? { |v| v.nil? }
             :stop_iteration
           else
             until values.all? { |v| v == values.first } || values.any? { |v| v.nil? }
               index = values.index(values.min)
-              values[index] = enums[index].next_or_nil
+              values[index] = streams[index].next_or_nil
             end
             pivot = values.first
             until values[0].nil? || values[0] > pivot
-              values[0] = enums[0].next_or_nil
+              values[0] = streams[0].next_or_nil
             end
             pivot
           end
@@ -95,18 +95,18 @@ module StreamLogic
   end
 
   class OrStream < CombiningStream
-    def combination(queries)
-      enums = queries.map(&:each)
-      values = enums.map(&:next_or_nil)
+    def combination(streams)
       ProcEnumerator.new do
+        streams.each(&:rewind)
+        values = streams.map(&:next_or_nil)
         lambda do
           if values.first.nil? && values.all? { |v| v.nil? }
             :stop_iteration
           else
             smallest = values.compact.min
-            enums.size.times do |i|
+            streams.size.times do |i|
               until values[i].nil? || values[i] > smallest
-                values[i] = enums[i].next_or_nil
+                values[i] = streams[i].next_or_nil
               end
             end
             smallest
