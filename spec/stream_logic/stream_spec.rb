@@ -17,6 +17,12 @@ module StreamLogic
 				s4 = described_class.new(%w[b c m w z])
 				(s1 & s2 & s3 & s4).to_a.should == %w[c m]
 			end
+
+			it 'returns only distinct elements' do
+				s1 = described_class.new(%w[a a a a a b b])
+				s2 = described_class.new(%w[a b b b c c])
+				(s1 & s2).to_a.should == %w[a b]
+			end
 		end
 
 		describe '#|' do
@@ -26,6 +32,12 @@ module StreamLogic
 				s3 = described_class.new(%w[c l m n x z])
 				s4 = described_class.new(%w[b c m w z])
 				(s1 | s2 | s3 | s4).to_a.should == %w[a b c l m n q w x z]
+			end
+
+			it 'returns only distinct elements' do
+				s1 = described_class.new(%w[a a a a a b b])
+				s2 = described_class.new(%w[a b b b c c])
+				(s1 | s2).to_a.should == %w[a b c]
 			end
 		end
 

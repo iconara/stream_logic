@@ -60,13 +60,17 @@ module StreamLogic
 			Enumerator.new do |yielder|
 				enums = queries.map(&:each)
 				values = enums.map { |e| safe_next(e) }
-				until values.any? { |v| v.nil? }
+				loop do
+					break if values.any? { |v| v.nil? }
 					until values.all? { |v| v == values.first } || values.any? { |v| v.nil? }
 						index = values.index(values.min)
 						values[index] = safe_next(enums[index])
 					end
-					yielder << values.first unless values.any? { |v| v.nil? }
-					values = enums.map { |e| safe_next(e) }
+					pivot = values.first
+					yielder << pivot
+					until values[0].nil? || values[0] > pivot
+						values[0] = safe_next(enums[0])
+					end
 				end
 			end
 		end
