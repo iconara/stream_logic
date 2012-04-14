@@ -87,7 +87,7 @@ module StreamLogic
           if values.any? { |v| v.nil? }
             :stop_iteration
           else
-            until values.all? { |v| v == values.first } || values.any? { |v| v.nil? }
+            until values.all? { |v| v == values.first } || values.any?(&:nil?)
               index = values.index(values.min)
               values[index] = streams[index].next_or_nil
             end
@@ -108,7 +108,7 @@ module StreamLogic
         streams.each(&:rewind)
         values = streams.map(&:next_or_nil)
         lambda do
-          if values.first.nil? && values.all? { |v| v.nil? }
+          if values.first.nil? && values.all?(&:nil?)
             :stop_iteration
           else
             smallest = values.compact.min
@@ -130,7 +130,7 @@ module StreamLogic
         streams.each(&:rewind)
         values = streams.map(&:next_or_nil)
         lambda do
-          if values.all? { |v| v.nil? }
+          if values.all?(&:nil?)
             :stop_iteration
           else
             smallest = values.compact.min
@@ -149,23 +149,22 @@ module StreamLogic
         streams.each(&:rewind)
         values = streams.map(&:next_or_nil)
         lambda do
-          if values.all? { |v| v.nil? }
+          if values.first.nil? && values.all?(&:nil?)
             :stop_iteration
           else
             smallest = nil
-            while true
-              value_groups = values.compact.group_by { |v| v }
-              smallest = value_groups.select { |v, vv| vv.size == 1 }.map(&:first).min
-              if smallest
+            until smallest != nil || (values.first.nil? && values.all?(&:nil?))
+              compact_values = values.compact
+              smallest = compact_values.min
+              if compact_values.count(smallest) == 1
                 streams.size.times do |i|
                   until values[i].nil? || values[i] > smallest
                     values[i] = streams[i].next_or_nil
                   end
                 end
-                break
               else
-                values = streams.map(&:next_or_nil)
-                break if values.all?(&:nil?)
+                values.replace(streams.map(&:next_or_nil))
+                smallest = nil
               end
             end
             smallest || :stop_iteration
