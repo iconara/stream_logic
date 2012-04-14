@@ -41,6 +41,26 @@ module StreamLogic
 			end
 		end
 
+		describe '#+' do
+			it 'returns a stream with all the items of all the streams' do
+				s1 = described_class.new(%w[a   c   m   q      ])
+				s2 = described_class.new(%w[    c   m          ])
+				s3 = described_class.new(%w[    c l m n     x z])
+				s4 = described_class.new(%w[  b c   m     w z  ])
+				(s1 + s2 + s3 + s4).to_a.should == %w[a b c c c c l m m m m n q w x z z]
+			end
+		end
+
+		describe '#-' do
+			it 'returns a stream with items that exist only in one of the streams' do
+				s1 = described_class.new(%w[a   c   m   q      ])
+				s2 = described_class.new(%w[    c   m          ])
+				s3 = described_class.new(%w[    c l m n     x z])
+				s4 = described_class.new(%w[  b c   m     w   z])
+				(s1 - s2 - s3 - s4).to_a.should == %w[a b l n q w x]
+			end
+		end
+
 		it 'returns a stream with the result of complex logical expressions on other streams' do
 			s1 = described_class.new(%w[a c m q])
 			s2 = described_class.new(%w[c m])
@@ -71,6 +91,15 @@ module StreamLogic
 			s3 = described_class.new { f3.rewind; f3 }
 			s4 = described_class.new { f4.rewind; f4 }
 			((s1 | s2 | s3) & s4).to_a.map(&:chomp).should == %w[c m z]
+		end
+
+		it 'automatically rewinds streams' do
+			s1 = described_class.new(%w[a c m q])
+			s2 = described_class.new(%w[c m])
+			s3 = described_class.new(%w[c l m n x z])
+			s4 = described_class.new(%w[b c m w z])
+			(s1 | s2 | s3 | s4).to_a.should == %w[a b c l m n q w x z]
+			(s1 | s2 | s3 | s4).to_a.should == %w[a b c l m n q w x z]
 		end
 
 		it 'evaluates the combined stream lazily' do

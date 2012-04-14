@@ -2,12 +2,20 @@
 
 module StreamLogic
   module CombinationOperators
-    def &(query)
-      AndStream.new(self, query)
+    def &(stream)
+      AndStream.new(self, stream)
     end
 
-    def |(query)
-      OrStream.new(self, query)
+    def |(stream)
+      OrStream.new(self, stream)
+    end
+
+    def +(stream)
+      PlusStream.new(self, stream)
+    end
+
+    def -(stream)
+      MinusStream.new(self, stream)
     end
   end
 
@@ -110,6 +118,57 @@ module StreamLogic
               end
             end
             smallest
+          end
+        end
+      end
+    end
+  end
+
+  class PlusStream < CombiningStream
+    def combination(streams)
+      ProcEnumerator.new do
+        streams.each(&:rewind)
+        values = streams.map(&:next_or_nil)
+        lambda do
+          if values.all? { |v| v.nil? }
+            :stop_iteration
+          else
+            smallest = values.compact.min
+            index = values.index(smallest)
+            values[index] = streams[index].next_or_nil
+            smallest
+          end
+        end
+      end
+    end
+  end
+
+  class MinusStream < CombiningStream
+    def combination(streams)
+      ProcEnumerator.new do
+        streams.each(&:rewind)
+        values = streams.map(&:next_or_nil)
+        lambda do
+          if values.all? { |v| v.nil? }
+            :stop_iteration
+          else
+            smallest = nil
+            while true
+              value_groups = values.compact.group_by { |v| v }
+              smallest = value_groups.select { |v, vv| vv.size == 1 }.map(&:first).min
+              if smallest
+                streams.size.times do |i|
+                  until values[i].nil? || values[i] > smallest
+                    values[i] = streams[i].next_or_nil
+                  end
+                end
+                break
+              else
+                values = streams.map(&:next_or_nil)
+                break if values.all?(&:nil?)
+              end
+            end
+            smallest || :stop_iteration
           end
         end
       end
