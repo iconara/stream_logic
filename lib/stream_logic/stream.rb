@@ -37,6 +37,10 @@ module StreamLogic
       @enumerator = nil
     end
 
+    def to_s
+      "Stream[#{(@enumerable ? @enumerable : @constructor).class}]"
+    end
+
     private
 
     def adapt(enumerable)
@@ -60,6 +64,8 @@ module StreamLogic
     include ExternalEnumeration
     include CombinationOperators
 
+    attr_reader :subqueries
+
     def initialize(*subqueries)
       @subqueries = subqueries
     end
@@ -73,8 +79,26 @@ module StreamLogic
       @enumerator = nil
     end
 
+    def simplify
+      new_subqueries = @subqueries.flat_map do |s|
+        if s.class == self.class
+          s.simplify.subqueries
+        elsif s.respond_to?(:simplify)
+          s.simplify
+        else
+          s
+        end
+      end
+      self.class.new(*new_subqueries)
+    end
+    alias_method :normalize, :simplify
+
     def combination
       raise NotImplementedError, %(#combination not implemented!)
+    end
+
+    def to_s(operator='')
+      "(#{@subqueries.map(&:to_s).join(" #{operator} ")})"
     end
   end
 
@@ -100,6 +124,10 @@ module StreamLogic
         end
       end
     end
+
+    def to_s
+      super('&')
+    end
   end
 
   class OrStream < CombiningStream
@@ -122,6 +150,10 @@ module StreamLogic
         end
       end
     end
+
+    def to_s
+      super('|')
+    end
   end
 
   class PlusStream < CombiningStream
@@ -140,6 +172,10 @@ module StreamLogic
           end
         end
       end
+    end
+
+    def to_s
+      super('+')
     end
   end
 
@@ -171,6 +207,10 @@ module StreamLogic
           end
         end
       end
+    end
+
+    def to_s
+      super('-')
     end
   end
 end

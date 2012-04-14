@@ -61,6 +61,29 @@ module StreamLogic
       end
     end
 
+    describe '#simplify' do
+      before do
+        @s1 = Stream.new([1, 2, 3, 4])
+        @s2 = Stream.new([2, 3, 4, 5])
+        @s3 = Stream.new([3, 4, 5, 6])
+        @s4 = Stream.new([4, 5, 6, 7])
+        @s5 = Stream.new([5, 6, 7, 8])
+        @s6 = Stream.new([6, 7, 8, 9])
+      end
+
+      it 'simplifies complex expressions' do
+        expr = (@s1 & @s2 & @s3) | (@s4 & @s5 & @s6)
+        expr.simplify.subqueries.first.subqueries.should have(3).items
+        expr.simplify.to_a.should == expr.to_a
+      end
+
+      it 'is aliased as #normalize' do
+        expr = (@s1 & @s2 & @s3) | (@s4 & @s5 & @s6)
+        expr.normalize.subqueries.first.subqueries.should have(3).items
+        expr.normalize.to_a.should == expr.to_a
+      end
+    end
+
     it 'returns a stream with the result of complex logical expressions on other streams' do
       s1 = described_class.new(%w[a c m q])
       s2 = described_class.new(%w[c m])
