@@ -115,11 +115,15 @@ module StreamLogic
               index = values.index(values.min)
               values[index] = streams[index].next_or_nil
             end
-            pivot = values.first
-            until values[0].nil? || values[0] > pivot
-              values[0] = streams[0].next_or_nil
+            if values.any?(&:nil?)
+              :stop_iteration
+            else
+              pivot = values.first
+              until values[0].nil? || values[0] > pivot
+                values[0] = streams[0].next_or_nil
+              end
+              pivot
             end
-            pivot
           end
         end
       end

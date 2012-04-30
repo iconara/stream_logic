@@ -23,6 +23,13 @@ module StreamLogic
         s2 = described_class.new(%w[a b b b c c])
         (s1 & s2).to_a.should == %w[a b]
       end
+
+      it 'handles an edge case' do
+        s1 = described_class.new(%w[  c d e])
+        s2 = described_class.new(%w[a c d  ])
+        s3 = described_class.new(%w[a   d e])
+        (s1 & s2 & s3).simplify.to_a.should == %w[d]
+      end
     end
 
     describe '#|' do
