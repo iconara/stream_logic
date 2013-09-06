@@ -1,9 +1,8 @@
-source :rubygems
+source 'https://rubygems.org/'
 
 gemspec
 
 group :test do
-	gem 'rspec'
+  gem 'rspec'
   gem 'viiite'
-  gem 'perftools.rb'
 end
