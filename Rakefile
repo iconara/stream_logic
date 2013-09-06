@@ -13,3 +13,5 @@ end
 task :spec do
   RSpec::Core::Runner.run(%w[spec])
 end
+
+task :default => :spec
